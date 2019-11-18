@@ -35,50 +35,53 @@ import io.netty.handler.ssl.util.SelfSignedCertificate;
  */
 public final class EchoServer {
 
-    static final boolean SSL = System.getProperty("ssl") != null;
-    static final int PORT = Integer.parseInt(System.getProperty("port", "8007"));
+	static final boolean SSL = System.getProperty("ssl") != null;
+	static final int PORT = Integer.parseInt(System.getProperty("port", "8007"));
 
-    public static void main(String[] args) throws Exception {
-        // Configure SSL.
-        final SslContext sslCtx;
-        if (SSL) {
-            SelfSignedCertificate ssc = new SelfSignedCertificate();
-            sslCtx = SslContextBuilder.forServer(ssc.certificate(), ssc.privateKey()).build();
-        } else {
-            sslCtx = null;
-        }
+	public static void main(String[] args) throws Exception {
+		// Configure SSL.
+		final SslContext sslCtx;
+		if (SSL) {
+			SelfSignedCertificate ssc = new SelfSignedCertificate();
+			sslCtx = SslContextBuilder.forServer(ssc.certificate(), ssc.privateKey()).build();
+		} else {
+			sslCtx = null;
+		}
 
-        // Configure the server.
-        EventLoopGroup bossGroup = new NioEventLoopGroup(1);
-        EventLoopGroup workerGroup = new NioEventLoopGroup();
-        final EchoServerHandler serverHandler = new EchoServerHandler();
-        try {
-            ServerBootstrap b = new ServerBootstrap();
-            b.group(bossGroup, workerGroup)
-             .channel(NioServerSocketChannel.class)
-             .option(ChannelOption.SO_BACKLOG, 100)
-             .handler(new LoggingHandler(LogLevel.INFO))
-             .childHandler(new ChannelInitializer<SocketChannel>() {
-                 @Override
-                 public void initChannel(SocketChannel ch) throws Exception {
-                     ChannelPipeline p = ch.pipeline();
-                     if (sslCtx != null) {
-                         p.addLast(sslCtx.newHandler(ch.alloc()));
-                     }
-                     //p.addLast(new LoggingHandler(LogLevel.INFO));
-                     p.addLast(serverHandler);
-                 }
-             });
+		// Configure the server.
+		// boss事件组，实际底层就是一个线程池组，用户处理客户端连接
+		EventLoopGroup bossGroup = new NioEventLoopGroup(1);
+		// worker事件组，用于处理socket通信
+		EventLoopGroup workerGroup = new NioEventLoopGroup();
+		final EchoServerHandler serverHandler = new EchoServerHandler();
+		try {
+			ServerBootstrap b = new ServerBootstrap();
+			b.group(bossGroup, workerGroup)
+				.channel(NioServerSocketChannel.class) // 实例化的channel是NioServerSocketChannel
+				.option(ChannelOption.SO_BACKLOG, 100)
+				.handler(new LoggingHandler(LogLevel.INFO))
+				.childHandler(new ChannelInitializer<SocketChannel>() { //设置socket channel处理器链
+					@Override
+					public void initChannel(SocketChannel ch) throws Exception {
+						ChannelPipeline p = ch.pipeline();
+						if (sslCtx != null) {
+							p.addLast(sslCtx.newHandler(ch.alloc()));
+						}
+						//p.addLast(new LoggingHandler(LogLevel.INFO));
+						p.addLast(serverHandler);
+					}
+				});
 
-            // Start the server.
-            ChannelFuture f = b.bind(PORT).sync();
+			// Start the server.
+			//绑定端口并启动，阻塞等待
+			ChannelFuture f = b.bind(PORT).sync();
 
-            // Wait until the server socket is closed.
-            f.channel().closeFuture().sync();
-        } finally {
-            // Shut down all event loops to terminate all threads.
-            bossGroup.shutdownGracefully();
-            workerGroup.shutdownGracefully();
-        }
-    }
+			// Wait until the server socket is closed.
+			f.channel().closeFuture().sync();
+		} finally {
+			// Shut down all event loops to terminate all threads.
+			bossGroup.shutdownGracefully();
+			workerGroup.shutdownGracefully();
+		}
+	}
 }
