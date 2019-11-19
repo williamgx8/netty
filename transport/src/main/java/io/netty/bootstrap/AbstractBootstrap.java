@@ -289,6 +289,9 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
 		return doBind(localAddress);
 	}
 
+	/**
+	 * 先注册，后绑定
+	 */
 	private ChannelFuture doBind(final SocketAddress localAddress) {
 		//初始化Channel并注册到EventLoopGroup
 		final ChannelFuture regFuture = initAndRegister();
@@ -300,12 +303,15 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
 
 		if (regFuture.isDone()) {
 			// At this point we know that the registration was complete and successful.
+			//注册完成
 			ChannelPromise promise = channel.newPromise();
+			//绑定
 			doBind0(regFuture, channel, localAddress, promise);
 			return promise;
 		} else {
 			// Registration future is almost always fulfilled already, but just in case it's not.
 			final PendingRegistrationPromise promise = new PendingRegistrationPromise(channel);
+			//添加监听器等待注册完成
 			regFuture.addListener(new ChannelFutureListener() {
 				@Override
 				public void operationComplete(ChannelFuture future) throws Exception {
@@ -318,7 +324,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
 						// Registration was successful, so set the correct executor to use.
 						// See https://github.com/netty/netty/issues/2586
 						promise.registered();
-
+						//注册完成绑定
 						doBind0(regFuture, channel, localAddress, promise);
 					}
 				}
@@ -333,6 +339,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
 	final ChannelFuture initAndRegister() {
 		Channel channel = null;
 		try {
+			//用channel工厂反射创建channel实例，底层包裹着ServerSocketChannel创建、INTEREST.OP的注册等
 			channel = channelFactory.newChannel();
 			init(channel);
 		} catch (Throwable t) {
@@ -348,11 +355,14 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
 				.setFailure(t);
 		}
 
+		//将channel--> ChannelPromise 注册到EventLoopGroup
 		ChannelFuture regFuture = config().group().register(channel);
 		if (regFuture.cause() != null) {
 			if (channel.isRegistered()) {
+				//出了问题但channel已经注册了，普通的关闭，pipeline依次关闭
 				channel.close();
 			} else {
+				//未完成注册强行关闭Channel
 				channel.unsafe().closeForcibly();
 			}
 		}

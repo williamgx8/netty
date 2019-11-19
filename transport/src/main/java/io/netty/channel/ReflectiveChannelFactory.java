@@ -42,6 +42,7 @@ public class ReflectiveChannelFactory<T extends Channel> implements ChannelFacto
 	@Override
 	public T newChannel() {
 		try {
+			// 比如调用NioServerSocketChannel构造器创建对应Channel对象
 			return constructor.newInstance();
 		} catch (Throwable t) {
 			throw new ChannelException(
