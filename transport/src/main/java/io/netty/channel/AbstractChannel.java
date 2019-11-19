@@ -42,18 +42,24 @@ import java.util.concurrent.RejectedExecutionException;
  */
 public abstract class AbstractChannel extends DefaultAttributeMap implements Channel {
 
-	private static final InternalLogger logger = InternalLoggerFactory.getInstance(AbstractChannel.class);
+	private static final InternalLogger logger = InternalLoggerFactory
+		.getInstance(AbstractChannel.class);
 
-	private static final ClosedChannelException ENSURE_OPEN_CLOSED_CHANNEL_EXCEPTION = ThrowableUtil.unknownStackTrace(
-		new ExtendedClosedChannelException(null), AbstractUnsafe.class, "ensureOpen(...)");
-	private static final ClosedChannelException CLOSE_CLOSED_CHANNEL_EXCEPTION = ThrowableUtil.unknownStackTrace(
-		new ClosedChannelException(), AbstractUnsafe.class, "close(...)");
-	private static final ClosedChannelException WRITE_CLOSED_CHANNEL_EXCEPTION = ThrowableUtil.unknownStackTrace(
-		new ExtendedClosedChannelException(null), AbstractUnsafe.class, "write(...)");
-	private static final ClosedChannelException FLUSH0_CLOSED_CHANNEL_EXCEPTION = ThrowableUtil.unknownStackTrace(
-		new ExtendedClosedChannelException(null), AbstractUnsafe.class, "flush0()");
-	private static final NotYetConnectedException FLUSH0_NOT_YET_CONNECTED_EXCEPTION = ThrowableUtil.unknownStackTrace(
-		new NotYetConnectedException(), AbstractUnsafe.class, "flush0()");
+	private static final ClosedChannelException ENSURE_OPEN_CLOSED_CHANNEL_EXCEPTION = ThrowableUtil
+		.unknownStackTrace(
+			new ExtendedClosedChannelException(null), AbstractUnsafe.class, "ensureOpen(...)");
+	private static final ClosedChannelException CLOSE_CLOSED_CHANNEL_EXCEPTION = ThrowableUtil
+		.unknownStackTrace(
+			new ClosedChannelException(), AbstractUnsafe.class, "close(...)");
+	private static final ClosedChannelException WRITE_CLOSED_CHANNEL_EXCEPTION = ThrowableUtil
+		.unknownStackTrace(
+			new ExtendedClosedChannelException(null), AbstractUnsafe.class, "write(...)");
+	private static final ClosedChannelException FLUSH0_CLOSED_CHANNEL_EXCEPTION = ThrowableUtil
+		.unknownStackTrace(
+			new ExtendedClosedChannelException(null), AbstractUnsafe.class, "flush0()");
+	private static final NotYetConnectedException FLUSH0_NOT_YET_CONNECTED_EXCEPTION = ThrowableUtil
+		.unknownStackTrace(
+			new NotYetConnectedException(), AbstractUnsafe.class, "flush0()");
 
 	private final Channel parent;
 	private final ChannelId id;
@@ -266,7 +272,8 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
 	}
 
 	@Override
-	public ChannelFuture connect(SocketAddress remoteAddress, SocketAddress localAddress, ChannelPromise promise) {
+	public ChannelFuture connect(SocketAddress remoteAddress, SocketAddress localAddress,
+		ChannelPromise promise) {
 		return pipeline.connect(remoteAddress, localAddress, promise);
 	}
 
@@ -428,7 +435,8 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
 	 */
 	protected abstract class AbstractUnsafe implements Unsafe {
 
-		private volatile ChannelOutboundBuffer outboundBuffer = new ChannelOutboundBuffer(AbstractChannel.this);
+		private volatile ChannelOutboundBuffer outboundBuffer = new ChannelOutboundBuffer(
+			AbstractChannel.this);
 		private RecvByteBufAllocator.Handle recvHandle;
 		private boolean inFlush0;
 		/**
@@ -465,21 +473,27 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
 
 		@Override
 		public final void register(EventLoop eventLoop, final ChannelPromise promise) {
+			//EventLoop是否为空
 			if (eventLoop == null) {
 				throw new NullPointerException("eventLoop");
 			}
+			//Channel是否已经注册
 			if (isRegistered()) {
-				promise.setFailure(new IllegalStateException("registered to an event loop already"));
+				promise
+					.setFailure(new IllegalStateException("registered to an event loop already"));
 				return;
 			}
+			//Channel与EventLoop是否匹配，对于AbstractNioChannel来说EventLoop必须是NioEventLoop
 			if (!isCompatible(eventLoop)) {
 				promise.setFailure(
-					new IllegalStateException("incompatible event loop type: " + eventLoop.getClass().getName()));
+					new IllegalStateException(
+						"incompatible event loop type: " + eventLoop.getClass().getName()));
 				return;
 			}
 
 			AbstractChannel.this.eventLoop = eventLoop;
 
+			//将当前线程就是EventLoop中线程，直接进入注册
 			if (eventLoop.inEventLoop()) {
 				register0(promise);
 			} else {
@@ -509,20 +523,26 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
 					return;
 				}
 				boolean firstRegistration = neverRegistered;
+				//将Channel注册到Selector上
 				doRegister();
+				//标识已注册
 				neverRegistered = false;
 				registered = true;
 
 				// Ensure we call handlerAdded(...) before we actually notify the promise. This is needed as the
 				// user may already fire events through the pipeline in the ChannelFutureListener.
+				//出发必要的处理器
 				pipeline.invokeHandlerAddedIfNeeded();
-
+				//设置ChannelPromise中的成功标志
 				safeSetSuccess(promise);
+				//出发Channel注册事件
 				pipeline.fireChannelRegistered();
 				// Only fire a channelActive if the channel has never been registered. This prevents firing
 				// multiple channel actives if the channel is deregistered and re-registered.
+				// 确认Channel已经激活，不同Channel实现不同
 				if (isActive()) {
 					if (firstRegistration) {
+						//如果是第一次注册出发Channel激活事件处理
 						pipeline.fireChannelActive();
 					} else if (config().isAutoRead()) {
 						// This channel was registered before and autoRead() is set. This means we need to begin read
@@ -666,7 +686,8 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
 							eventLoop().execute(new Runnable() {
 								@Override
 								public void run() {
-									closeOutboundBufferForShutdown(pipeline, outboundBuffer, shutdownCause);
+									closeOutboundBufferForShutdown(pipeline, outboundBuffer,
+										shutdownCause);
 								}
 							});
 						}
@@ -828,7 +849,8 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
 					try {
 						doDeregister();
 					} catch (Throwable t) {
-						logger.warn("Unexpected exception occurred while deregistering a channel.", t);
+						logger.warn("Unexpected exception occurred while deregistering a channel.",
+							t);
 					} finally {
 						if (fireChannelInactive) {
 							pipeline.fireChannelInactive();
@@ -1014,7 +1036,8 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
 		 */
 		protected final void safeSetSuccess(ChannelPromise promise) {
 			if (!(promise instanceof VoidChannelPromise) && !promise.trySuccess()) {
-				logger.warn("Failed to mark a promise as success because it is done already: {}", promise);
+				logger.warn("Failed to mark a promise as success because it is done already: {}",
+					promise);
 			}
 		}
 
@@ -1023,7 +1046,8 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
 		 */
 		protected final void safeSetFailure(ChannelPromise promise, Throwable cause) {
 			if (!(promise instanceof VoidChannelPromise) && !promise.tryFailure(cause)) {
-				logger.warn("Failed to mark a promise as failure because it's done already: {}", promise, cause);
+				logger.warn("Failed to mark a promise as failure because it's done already: {}",
+					promise, cause);
 			}
 		}
 
@@ -1056,12 +1080,14 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
 		/**
 		 * Appends the remote address to the message of the exceptions caused by connection attempt failure.
 		 */
-		protected final Throwable annotateConnectException(Throwable cause, SocketAddress remoteAddress) {
+		protected final Throwable annotateConnectException(Throwable cause,
+			SocketAddress remoteAddress) {
 			if (cause instanceof ConnectException) {
 				return new AnnotatedConnectException((ConnectException) cause, remoteAddress);
 			}
 			if (cause instanceof NoRouteToHostException) {
-				return new AnnotatedNoRouteToHostException((NoRouteToHostException) cause, remoteAddress);
+				return new AnnotatedNoRouteToHostException((NoRouteToHostException) cause,
+					remoteAddress);
 			}
 			if (cause instanceof SocketException) {
 				return new AnnotatedSocketException((SocketException) cause, remoteAddress);
@@ -1211,7 +1237,8 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
 
 		private static final long serialVersionUID = -6801433937592080623L;
 
-		AnnotatedNoRouteToHostException(NoRouteToHostException exception, SocketAddress remoteAddress) {
+		AnnotatedNoRouteToHostException(NoRouteToHostException exception,
+			SocketAddress remoteAddress) {
 			super(exception.getMessage() + ": " + remoteAddress);
 			initCause(exception);
 			setStackTrace(exception.getStackTrace());

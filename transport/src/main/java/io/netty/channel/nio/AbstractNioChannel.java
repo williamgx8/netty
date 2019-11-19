@@ -51,8 +51,9 @@ public abstract class AbstractNioChannel extends AbstractChannel {
 	private static final InternalLogger logger =
 		InternalLoggerFactory.getInstance(AbstractNioChannel.class);
 
-	private static final ClosedChannelException DO_CLOSE_CLOSED_CHANNEL_EXCEPTION = ThrowableUtil.unknownStackTrace(
-		new ClosedChannelException(), AbstractNioChannel.class, "doClose()");
+	private static final ClosedChannelException DO_CLOSE_CLOSED_CHANNEL_EXCEPTION = ThrowableUtil
+		.unknownStackTrace(
+			new ClosedChannelException(), AbstractNioChannel.class, "doClose()");
 
 	private final SelectableChannel ch;
 	protected final int readInterestOp;
@@ -241,7 +242,8 @@ public abstract class AbstractNioChannel extends AbstractChannel {
 
 		@Override
 		public final void connect(
-			final SocketAddress remoteAddress, final SocketAddress localAddress, final ChannelPromise promise) {
+			final SocketAddress remoteAddress, final SocketAddress localAddress,
+			final ChannelPromise promise) {
 			if (!promise.setUncancellable() || !ensureOpen(promise)) {
 				return;
 			}
@@ -267,7 +269,8 @@ public abstract class AbstractNioChannel extends AbstractChannel {
 							public void run() {
 								ChannelPromise connectPromise = AbstractNioChannel.this.connectPromise;
 								ConnectTimeoutException cause =
-									new ConnectTimeoutException("connection timed out: " + remoteAddress);
+									new ConnectTimeoutException(
+										"connection timed out: " + remoteAddress);
 								if (connectPromise != null && connectPromise.tryFailure(cause)) {
 									close(voidPromise());
 								}
@@ -342,7 +345,8 @@ public abstract class AbstractNioChannel extends AbstractChannel {
 				doFinishConnect();
 				fulfillConnectPromise(connectPromise, wasActive);
 			} catch (Throwable t) {
-				fulfillConnectPromise(connectPromise, annotateConnectException(t, requestedRemoteAddress));
+				fulfillConnectPromise(connectPromise,
+					annotateConnectException(t, requestedRemoteAddress));
 			} finally {
 				// Check for null as the connectTimeoutFuture is only created if a connectTimeoutMillis > 0 is used
 				// See https://github.com/netty/netty/issues/1770
@@ -371,7 +375,8 @@ public abstract class AbstractNioChannel extends AbstractChannel {
 
 		private boolean isFlushPending() {
 			SelectionKey selectionKey = selectionKey();
-			return selectionKey.isValid() && (selectionKey.interestOps() & SelectionKey.OP_WRITE) != 0;
+			return selectionKey.isValid()
+				&& (selectionKey.interestOps() & SelectionKey.OP_WRITE) != 0;
 		}
 	}
 
@@ -385,6 +390,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
 		boolean selected = false;
 		for (; ; ) {
 			try {
+				//实际上调用原生的ServerSocketChannel.register(Selector)
 				selectionKey = javaChannel().register(eventLoop().unwrappedSelector(), 0, this);
 				return;
 			} catch (CancelledKeyException e) {
@@ -426,7 +432,8 @@ public abstract class AbstractNioChannel extends AbstractChannel {
 	/**
 	 * Connect to the remote peer
 	 */
-	protected abstract boolean doConnect(SocketAddress remoteAddress, SocketAddress localAddress) throws Exception;
+	protected abstract boolean doConnect(SocketAddress remoteAddress, SocketAddress localAddress)
+		throws Exception;
 
 	/**
 	 * Finish the connect
